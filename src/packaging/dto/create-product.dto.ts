@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsNumber, IsPositive, IsString } from 'class-validator';
+import { Type } from 'class-transformer/types/decorators/type.decorator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsPositive,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class DimensionsDto {
   @IsNumber()
@@ -20,5 +27,7 @@ export class CreateProductDto {
   produto_id: string;
 
   @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => DimensionsDto)
   dimensoes: DimensionsDto;
 }
