@@ -10,7 +10,7 @@ import { User } from './users/models/user.model';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    
+
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -26,7 +26,7 @@ import { User } from './users/models/user.model';
       }),
       inject: [ConfigService],
     }),
-    
+
     PackagingModule,
     AuthModule,
   ],
