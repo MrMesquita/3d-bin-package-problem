@@ -1,0 +1,55 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: manoel-games-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - manoel-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: manoel-games-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "${PORT}:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - manoel-network
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+    command: npm run start:prod
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  manoel-network:
+    driver: bridge
