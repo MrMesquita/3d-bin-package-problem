@@ -1,15 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { BoxDto } from './dto/box.dto';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { PackedBoxDto, PackedOrderDto } from './dto/packed-order.dto';
+import { RequestOptimizeOrdersDto } from './dto/create-order.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { AvailableBoxDto } from './dto/avaiable-box.dto';
+import { InternalBox } from './interfaces/internal-box.interface';
+import { OptimizedBoxDto } from './dto/optmized-box.dto';
+import { OptimizedOrderDto } from './dto/optimized-order.dto';
 
 @Injectable()
 export class PackagingService {
-  private readonly availableBoxes: BoxDto[] = [
-    { name: 'Caixa 1', height: 30, width: 40, length: 80 },
-    { name: 'Caixa 2', height: 50, width: 50, length: 40 },
-    { name: 'Caixa 3', height: 50, width: 80, length: 60 },
+  private readonly availableBoxes: AvailableBoxDto[] = [
+    {
+      name: 'Caixa 1',
+      dimensions: { height: 30, width: 40, length: 80 },
+    },
+    {
+      name: 'Caixa 2',
+      dimensions: { height: 50, width: 50, length: 40 },
+    },
+    {
+      name: 'Caixa 3',
+      dimensions: { height: 50, width: 80, length: 60 },
+    },
   ];
 
   private calculateVolume(
@@ -20,33 +31,38 @@ export class PackagingService {
     return height * width * length;
   }
 
-  private sortDecrasingByVolume(
+  private sortDecreasingByVolume(
     a: CreateProductDto,
     b: CreateProductDto,
   ): number {
     const volumeA = this.calculateVolume(
-      a.dimensions.height,
-      a.dimensions.width,
-      a.dimensions.length,
+      a.dimensoes.altura,
+      a.dimensoes.largura,
+      a.dimensoes.comprimento,
     );
     const volumeB = this.calculateVolume(
-      b.dimensions.height,
-      b.dimensions.width,
-      b.dimensions.length,
+      b.dimensoes.altura,
+      b.dimensoes.largura,
+      b.dimensoes.comprimento,
     );
     return volumeB - volumeA;
   }
 
-  private productCanFitInBox(product: CreateProductDto, box: BoxDto): boolean {
+  private productCanFitInAvailableBox(
+    product: CreateProductDto,
+    box: AvailableBoxDto,
+  ): boolean {
     const productDimensions = [
-      product.dimensions.height,
-      product.dimensions.width,
-      product.dimensions.length,
+      product.dimensoes.altura,
+      product.dimensoes.largura,
+      product.dimensoes.comprimento,
     ].sort((a, b) => a - b);
 
-    const boxDimensions = [box.height, box.width, box.length].sort(
-      (a, b) => a - b,
-    );
+    const boxDimensions = [
+      box.dimensions.height,
+      box.dimensions.width,
+      box.dimensions.length,
+    ].sort((a, b) => a - b);
 
     return (
       productDimensions[0] <= boxDimensions[0] &&
@@ -57,27 +73,32 @@ export class PackagingService {
 
   private createNewBoxForProduct(
     product: CreateProductDto,
-  ): PackedBoxDto | null {
+  ): InternalBox | null {
     for (const box of this.availableBoxes) {
-      if (this.productCanFitInBox(product, box)) {
+      if (this.productCanFitInAvailableBox(product, box)) {
         return {
           name: box.name,
-          dimensions: {
-            height: box.height,
-            width: box.width,
-            length: box.length,
-          },
+          dimensions: { ...box.dimensions },
           products: [product],
         };
       }
     }
-    return null;
+
+    return {
+      name: null,
+      products: [product],
+      observations: 'Produto não cabe em nenhuma caixa disponível.',
+    };
   }
 
   private canAddProductToUsedBox(
     product: CreateProductDto,
-    usedBox: PackedBoxDto,
+    usedBox: InternalBox,
   ): boolean {
+    if (!usedBox.dimensions) {
+      return false;
+    }
+
     const boxVolume = this.calculateVolume(
       usedBox.dimensions.height,
       usedBox.dimensions.width,
@@ -85,54 +106,71 @@ export class PackagingService {
     );
 
     const productVolume = this.calculateVolume(
-      product.dimensions.height,
-      product.dimensions.width,
-      product.dimensions.length,
+      product.dimensoes.altura,
+      product.dimensoes.largura,
+      product.dimensoes.comprimento,
     );
 
     const usedVolume = usedBox.products.reduce((total, prod) => {
       return (
         total +
         this.calculateVolume(
-          prod.dimensions.height,
-          prod.dimensions.width,
-          prod.dimensions.length,
+          prod.dimensoes.altura,
+          prod.dimensoes.largura,
+          prod.dimensoes.comprimento,
         )
       );
     }, 0);
 
-    return usedVolume + productVolume <= boxVolume;
+    return (
+      this.productCanFitInAvailableBox(product, {
+        name: usedBox.name || 'No box',
+        dimensions: usedBox.dimensions,
+      }) && usedVolume + productVolume <= boxVolume
+    );
   }
 
-  public packOrders(order: CreateOrderDto): PackedOrderDto {
-    const sortedProducts = [...order.products].sort((a, b) =>
-      this.sortDecrasingByVolume(a, b),
-    );
+  public optimizeOrders(orders: RequestOptimizeOrdersDto): OptimizedOrderDto[] {
+    const results: OptimizedOrderDto[] = [];
 
-    const usedBoxes: PackedBoxDto[] = [];
+    for (const order of orders.pedidos) {
+      const sortedProducts = [...order.produtos].sort((a, b) =>
+        this.sortDecreasingByVolume(a, b),
+      );
 
-    for (const product of sortedProducts) {
-      let productPlaced = false;
+      const usedBoxes: InternalBox[] = [];
 
-      for (const usedBox of usedBoxes) {
-        if (this.canAddProductToUsedBox(product, usedBox)) {
-          usedBox.products.push(product);
-          productPlaced = true;
-          break;
+      for (const product of sortedProducts) {
+        let productPlaced = false;
+
+        for (const usedBox of usedBoxes) {
+          if (this.canAddProductToUsedBox(product, usedBox)) {
+            usedBox.products.push(product);
+            productPlaced = true;
+            break;
+          }
+        }
+
+        if (!productPlaced) {
+          const newBox = this.createNewBoxForProduct(product);
+          if (newBox) {
+            usedBoxes.push(newBox);
+          }
         }
       }
 
-      if (!productPlaced) {
-        const newBox = this.createNewBoxForProduct(product);
-        if (newBox) {
-          usedBoxes.push(newBox);
-        }
-      }
+      const optmizedBoxes: OptimizedBoxDto[] = usedBoxes.map((box) => ({
+        caixa_id: box.name || null,
+        produtos: box.products.map((prod) => prod.produto_id),
+        observacao: box.observations || undefined,
+      }));
+
+      results.push({
+        pedido_id: order.pedido_id.toString(),
+        caixas: optmizedBoxes,
+      });
     }
 
-    return {
-      orderId: order.orderId,
-      boxes: usedBoxes,
-    };
+    return results;
   }
 }

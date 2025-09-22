@@ -3,22 +3,22 @@ import { IsNotEmpty, IsNumber, IsPositive, IsString } from 'class-validator';
 export class DimensionsDto {
   @IsNumber()
   @IsPositive()
-  height: number;
+  altura: number;
 
   @IsNumber()
   @IsPositive()
-  width: number;
+  largura: number;
 
   @IsNumber()
   @IsPositive()
-  length: number;
+  comprimento: number;
 }
 
 export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  produto_id: string;
 
   @IsNotEmpty()
-  dimensions: DimensionsDto;
+  dimensoes: DimensionsDto;
 }
