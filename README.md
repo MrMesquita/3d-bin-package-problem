@@ -36,7 +36,7 @@ Uma solução completa para otimizar o empacotamento de produtos em caixas, maxi
 ```bash
 # 1. Clone o repositório
 git clone https://github.com/MrMesquita/3d-bin-package-problem.git
-cd manoel-games-store
+3d-bin-package-problem
 
 # 2. Configure o ambiente (o .env já está pronto!)
 # Opcional: edite o .env se quiser alterar senhas/configurações
@@ -44,8 +44,6 @@ cd manoel-games-store
 # 3. Execute tudo com Docker Compose
 docker-compose up -d
 ```
-
-**🎉 PRONTO! Em menos de 2 minutos você terá:**
 
 **🎉 PRONTO! Em menos de 2 minutos você terá:**
 
